@@ -63,6 +63,9 @@ ChangePressed
    ANDS R1, R1, #0x02
    BNE ChangePressed
    ADD R2, R2, #20
+   LDR R0, =GPIO_PORTA_IDR
+   LDR R1, [R0]
+   ANDS R1, R1, #0x02
    CMP R2, #90
    BLE default
    MOV R2, #10
@@ -72,23 +75,27 @@ default
 	B loop
 
 breathe
+   push {LR, R5}
    LDR R0, =PerlinTable
-   ADD R1,R0,#512
-   push{LR, R5}
+   ADD R1,R0, #512
+   
 for
    LDR R3, =GPIO_PORTA_IDR ; check Breath hold
    LDR R4, [R3]
    ANDS R4, R4, #0x01
-   BEQ done ; if breath release, exit
+   BEQ return ; if breath release, exit
    CMP R0,R1
-   BGT done
+   BGT return
    LDRH R3,[R0]
    BL breathloop
    ADD R0,R0,#2
 	B for
-
+return 
+   POP {LR, R5}
+   MOV PC, LR
 breathloop
    MOV R5, #0
+   push {LR,R1}
 while
    CMP R5, #5
    BGT done
@@ -97,7 +104,7 @@ while
    ANDS R4, R4, #0x01
    BEQ done
 
-   push {LR,R1}
+   
    LDR R4, =GPIO_PORTB_ODR
    LDR R6, [R4]
    MOV32 R6, #0x01
@@ -120,14 +127,11 @@ while
    BL Delay
    ADD R5,R5,#1
    b while
-   pop{R1}
+   
 done
-   pop {LR, R5}
+   pop {LR, R5, R1}
    MOV PC, LR
-
-
-
-
+   B loop
 
 toggle
    LDR R0,=GPIO_PORTB_ODR
@@ -135,6 +139,10 @@ toggle
    MOV R1, #0x01 ;set PB0 = 1
    STR R1,[R0]
 	
+   LDR R0, =GPIO_PORTA_IDR
+   LDR R1, [R0]
+   ANDS R1, R1, #0x02
+   BNE ChangePressed
 
    MOV R3, #20
 	MUL R1, R2, R3
@@ -145,11 +153,19 @@ toggle
    LDR R1,[R0]
    MOV R1, #0x00 ;set PB0 = 0 
    STR R1,[R0]
+
+   LDR R0, =GPIO_PORTA_IDR
+   LDR R1, [R0]
+   ANDS R1, R1, #0x02
+   BNE ChangePressed
 	
    MOV R5, #100
 	SUB R5, R5, R2
 	MUL R1, R5, R3
    BL DelayFunc
+
+   
+   
 	pop {lr}
    MOV PC, LR
     
