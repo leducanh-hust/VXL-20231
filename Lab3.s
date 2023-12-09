@@ -125,7 +125,7 @@ for
 	b for
 done
    pop {lr}
-   mov pc,lr
+   BX LR
 
    
 breathloop
@@ -144,7 +144,7 @@ breathloop
 	sub r1,r4,r3
     bl Delay
     pop{lr,r1}
-    mov pc,lr
+    BX LR
 
 
 
@@ -170,7 +170,7 @@ toggle
 	MUL R1, R5, R3
     BL DelayFunc
 	pop {lr}
-    MOV PC, LR
+    BX LR
     
 DelayFunc
 	MOV32 R5, #10000
