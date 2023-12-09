@@ -23,6 +23,8 @@ GPIO_PORTE_DATA_R  EQU 0x400243FC
 GPIO_PORTE_DIR_R   EQU 0x40024400
 GPIO_PORTE_DEN_R   EQU 0x4002451C
 SYSCTL_RCGCGPIO_R  EQU 0x400FE608
+frequency_100Hz    EQU 10 ; 100 Hz   
+
 
         IMPORT  TExaS_Init
         THUMB
@@ -62,7 +64,7 @@ Start
     ORR R1,R1,#0x29  ;enable PA5 digital port
     STR R1,[R0]
 	
-    MOV R2, #30
+    MOV R2, #30 
 loop
     
 	LDR R0, =GPIO_PORTE_DATA_R
@@ -80,6 +82,7 @@ changeduty
     b default
 
 ChangePressed
+    BL toggle
     LDR R0, =GPIO_PORTE_DATA_R
     LDR R1, [R0]
     ANDS R1, R1, #0x01
@@ -105,12 +108,45 @@ breathePressed
     CMP R1, #0x08
     BNE default
     BL breathe
+    B breathePressed
+
+
 
 breathe
     LDR R0, =PerlinTable
-    LDR R1, [R0]
+    add r1,r0,#512
+    push{lr}
+for 
+    cmp r0,r1
+    bge done
+    ldrh r3,[r0]
+    bl breathloop
+    add r0,r0,#2
+	b for
+done
+   pop {lr}
+   mov pc,lr
 
-    B loop
+   
+breathloop
+    push {lr,r1}
+    LDR R4, =GPIO_PORTE_DATA_R
+    LDR R6, [R4]
+    ORR R6, R6, #0x20
+    STR R6, [R4]
+	mov r1,r3
+    bl Delay
+    LDR R4, =GPIO_PORTE_DATA_R
+    LDR R6, [R4]
+    BIC R6, R6, #0x20
+    STR R6, [R4]
+	mov32 r4,#10000
+	sub r1,r4,r3
+    bl Delay
+    pop{lr,r1}
+    mov pc,lr
+
+
 
 toggle
 	LDR R0,=GPIO_PORTE_DATA_R
@@ -139,16 +175,15 @@ toggle
 DelayFunc
 	MOV32 R5, #10000
 	MUL R1, R1, R5
-Delay NOP ;dummy operation
+Delay NOP ;dummy operation 8cycle->1v 100ns->5000000
       NOP
       NOP
       NOP
       SUBS R1,R1,#1
       BNE  Delay
       BX   LR
-     
-    ALIGN 4   
 
+  ALIGN 4
 ; 256 points with values from 100 to 9900      
 PerlinTable
      DCW 5880,6225,5345,3584,3545,674,5115,598,7795,3737,3775,2129,7527,9020,368,8713,5459,1478,4043,1248,2741,5536,406
@@ -163,21 +198,6 @@ PerlinTable
      DCW 6952,6302,9326,3201,2052,5651,9096,9632,636,9249,4196,1976,7450,8292,1287,7029,7718,4158,6110,7144,3316,7909
      DCW 6838,4502,4732,2014,1823,4962,253,5842,9823,5383,9134,7948,3660,8598,4464,2665,1210,1019,2856,9402,5498,5000
      DCW 7565,3086,2627,8330,2435,6072,6991
-; 100 numbers from 0 to 10000
-; sinusoidal shape
-  ALIGN 4
-SinTable 
-  DCW  5000, 5308, 5614, 5918, 6219, 6514, 6804, 7086, 7361, 7626
-  DCW  7880, 8123, 8354, 8572, 8776, 8964, 9137, 9294, 9434, 9556
-  DCW  9660, 9746, 9813, 9861, 9890, 9900, 9890, 9861, 9813, 9746
-  DCW  9660, 9556, 9434, 9294, 9137, 8964, 8776, 8572, 8354, 8123
-  DCW  7880, 7626, 7361, 7086, 6804, 6514, 6219, 5918, 5614, 5308
-  DCW  5000, 4692, 4386, 4082, 3781, 3486, 3196, 2914, 2639, 2374
-  DCW  2120, 1877, 1646, 1428, 1224, 1036,  863,  706,  566,  444
-  DCW   340,  254,  187,  139,  110,  100,  110,  139,  187,  254
-  DCW   340,  444,  566,  706,  863, 1036, 1224, 1428, 1646, 1877
-  DCW  2120, 2374, 2639, 2914, 3196, 3486, 3781, 4082, 4386, 4692  
       
      ALIGN      ; make sure the end of this section is aligned
      END        ; end of file
-
