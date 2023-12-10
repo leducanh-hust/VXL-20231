@@ -100,7 +100,7 @@ while
    CMP R5, #5
    BGT done
 
-   LDR R4, =GPIO_PORTB_ODR
+   LDR R4, =GPIO_PORTA_IDR
    ANDS R4, R4, #0x01
    BEQ done
 
@@ -113,7 +113,7 @@ while
 	MOV R1,R3
    BL Delay
 
-   LDR R4, =GPIO_PORTB_ODR
+   LDR R4, =GPIO_PORTA_IDR
    ANDS R4, R4, #0x01
    BEQ done
 
