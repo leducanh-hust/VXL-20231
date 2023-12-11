@@ -15,7 +15,7 @@ __main
    MOV32 r0,#0x0C
    STR r0,[r3,#0x18]
    
-   ; GPIOx_CRH: 0 - 15,
+   ; GPIOx_CRH: 8 - 15,
    ;configure A0,A1 as input pull down
    LDR r1,=PortA
    MOV32 r0,#0x088
