@@ -1,140 +1,173 @@
-
-PortB EQU 0x40010C00
-PortA EQU 0x40010800
+GPIO_PORTA_CRL EQU 0x40010800
+GPIO_PORTB_CRL EQU 0x40010C00
+GPIO_PORTA_ODR EQU 0x4001080C
+GPIO_PORTB_ODR EQU 0x40010C0C
+GPIO_PORTA_IDR EQU 0x40010808
+GPIO_PORTB_IDR EQU 0x40010C08
 RCC EQU 0x40021000
 
-; ADDress = Base ADDress + Offset 
-       AREA mycode, CODE, READONLY
-       EXPORT __main
-	   ENTRY
+
+   AREA mycode, CODE, READONLY
+   EXPORT __main
+	ENTRY  
 
 __main
-   ;Set up
-   ;enaBLe clock port A,B
-   LDR r3,=RCC
-   MOV32 r0,#0x0C
-   STR r0,[r3,#0x18]
-   
-   ; GPIOx_CRH: 8 - 15,
-   ;configure A0,A1 as input pull down
-   LDR r1,=PortA
-   MOV32 r0,#0x088
-   STR r0,[r1,#0x00]
-   MOV32 r0,#0x00
-   STR r0,[r1,#0x0C]
-   
-   ;configure B0 as output push pull 
-   LDR r2,=PortB
-   MOV32 r0,#0x02
-   STR r0,[r2,#0x00]; GPIOx_CRL
-   MOV32 r0,0x00
-   STR r0,[r2,#0x0C]; GPIO_ODR
-   
-   ;dutycycle
-   ;initialy r5=600000
-   MOV32 r5,#600000 ;30% duty cycle
-   MOV32 r6,#2000000 ;2s->0.5Hz
-   MOV32 r8,#10000 ;100hz
-kiemtra
-   LDR r0,[r1,#0x08]; Kiem tra A0(Breathe Switch)
-   ANDS r0,r0,#0x01
-   BEQ next ;Kiem tra A1(Change Switch)
-   BL breathing
-   b kiemtra
+   LDR R0,=RCC
+   LDR R1,[R0]
+   MOV32 R1,#0x0C
+   STR R1,[R0, #0x18]
+	
+	NOP
+
+   LDR R0,=GPIO_PORTA_CRL
+   LDR R1,[R0]
+   MOV32 R1,#0x88
+   STR R1,[R0]
+
+   LDR R0,= GPIO_PORTA_ODR
+   LDR R1,[R0]
+   MOV32 R1, #0x00  ;enable PA5 digital port
+   STR R1,[R0]
+
+   LDR R0,=GPIO_PORTB_CRL
+   LDR R1,[R0]
+   MOV32 R1,#0x02
+   STR R1,[R0]
+
+   LDR R0,= GPIO_PORTB_ODR
+   LDR R1,[R0]
+   MOV32 R1, #0x00  ;enable PB0 digital port
+	
+   MOV R2, #30 
+loop
+    
+	LDR R0, =GPIO_PORTA_IDR
+    LDR R1, [R0]
+    ANDS R1, R1, #0x02
+    BEQ check_breathe
+    BAL changePressed
+
+check_breathe
+    LDR R0, =GPIO_PORTA_IDR
+    LDR R1, [R0]
+    ANDS R1, R1, #0x01
+    BEQ default
+    BAL breathePressed
+
+changePressed
+    LDR R0, =GPIO_PORTA_IDR
+    LDR R1, [R0]
+    ANDS R1, R1, #0x02
+    BNE changePressed
+    ADD R2, R2, #20
+    CMP R2, #90
+    BLE default
+    MOV R2, #10
+
+default
+    BL toggle
+	B loop
+
+breathePressed
+    LDR R0, =GPIO_PORTA_IDR
+    LDR R1, [R0]
+    ANDS R1, R1, #0x01
+    CMP R1, #0x01
+    BNE default
+    BL breathe
+    B breathePressed
+
+
+
+breathe
+    LDR R0, =SinTable
+    add r1,r0,#200
+    push{lr}
+for 
+    cmp r0,r1
+    bge done
+    ldrh r3,[r0]
+    bl breathloop
+    add r0,r0,#2
+	b for
+done
+   pop {lr}
+   BX LR
 
    
-next   LDR r0,[r1,#0x08] ; Kiem tra A0
-   ANDS r0,r0,#0x02
-   BEQ this ; if A0 == 0
-while ; stop oscilation
-   LDR r0,[r1,#0x08]
-   ANDS r0,r0,#0x02
-   BNE while
-; Kiem tra neu tha nut Change 
-   MOV32 r4,#400000;20%
-   ADD r5,r5,r4
-   CMP r5,r6 ;neu dang o 90% duty cycle thi chuyen duty cycle sang 10%
-   BLS this 
-   MOV32 r5,#200000;10%
-this   BL toggle
-   b kiemtra
-   
-   
-   ;Nhay theo duty cycle 
-toggle
-   push {lr}
-   MOV32 r0,#0x01
-   STR r0,[r2,#0x0C]
-   MOV r0,r5
-   BL delay1
-   MOV32 r0,#0x00
-   STR r0,[r2,#0x0C]
-   SUB r0,r6,r5
-   BL delay1
-   pop{lr}
-   MOV pc,lr ; return
-
-delay1;8n cycle
-  CMP r0,#0x00
-  nop
-  nop
-  nop
-  BEQ return1
-  SUB r0,r0,#1
-  b delay1
-return1
-  MOV pc,lr
-  
-breathing
-   push{lr,r5}
-   LDR r7,=SinTaBLe
-   ADD r3,r7,#200
-for
-   CMP r7,r3
-   bge return3
-   LDR r0,[r1,#0x08]; co the bo 107-109
-   ANDS r0,#0x01
-   BEQ return3
-   BL breathloop
-   ADD r7,r7,#2
-   b for
-   
-return3   pop {lr,r5}
-          MOV pc,lr
-		  
-		  
-; breath loop		  
 breathloop
-   MOV32 r5,#0
-   push {lr}
-for2
-   CMP r5,#2 ; lap 2 lan tai duty cycle tai [r7]
-   bgt donebreath
-   LDR r0,[r1,#0x08] ; kiem tra nut A0 
-   ANDS r0,#0x01
-   BEQ donebreath
-   MOV r0,#0x01
-   STR r0,[r2,#0x0C]
-   LDRH r0,[r7,#0]
-   BL delay1
-   LDR r0,[r1,#0x08] ;kiem tra nut A0
-   ANDS r0,#0x01
-   BEQ donebreath
-   MOV r0,#0x00
-   STR r0,[r2,#0x0C]
-   LDRH r0,[r7,#0]
-   SUB r0,r8,r0
-   BL delay1
-   ADD r5,r5,#1
-   b for2
-donebreath
-   pop{lr}
-   MOV pc,lr
-   
+    push {lr,r1}
+    LDR R4, =GPIO_PORTB_ODR
+    LDR R6, [R4]
+    MOV32 R6, #0x01
+    STR R6, [R4]
+	mov r1,r3
+    bl Delay
+    LDR R4, =GPIO_PORTB_ODR
+    LDR R6, [R4]
+    MOV32 R6, #0x00
+    STR R6, [R4]
+	mov32 r4,#10000
+	sub r1,r4,r3
+    bl Delay
+    pop{lr,r1}
+    BX LR
 
-          ALIGN 4
-SinTaBLe 
-  DCW  5000, 5308, 5614, 5918, 6219, 6514, 6804, 7086, 7361, 7626
+
+
+toggle
+	LDR R0,=GPIO_PORTB_ODR
+    LDR R1,[R0]
+    MOV32 R1, #0x01 ;set PE5 to 1
+    STR R1,[R0]
+	
+	LDR R0, =GPIO_PORTA_IDR
+    LDR R1, [R0]
+    ANDS R1, #0x02
+    BNE changePressed
+
+    MOV R3, #20
+	MUL R1, R2, R3
+	push {lr}
+    BL DelayFunc
+
+    LDR R0,=GPIO_PORTB_ODR
+    LDR R1,[R0]
+    MOV32 R1, #0x00 ;set PE5 to 0
+    STR R1,[R0]
+	
+	LDR R0, =GPIO_PORTA_IDR
+    LDR R1, [R0]
+    ANDS R1, R1, #0x02
+    BNE changePressed
+	
+    MOV R5, #100
+	SUB R5, R5, R2
+	MUL R1, R5, R3
+    BL DelayFunc
+	
+	LDR R0, =GPIO_PORTA_IDR
+    LDR R1, [R0]
+    ANDS R1, R1, #0x02
+    BNE changePressed
+	pop {lr}
+    BX LR
+    
+DelayFunc
+	MOV32 R5, #1000
+	MUL R1, R1, R5
+Delay NOP ;dummy operation 8cycle->1v 100ns->5000000
+      NOP
+      NOP
+      NOP
+      SUBS R1,R1,#1
+      BNE  Delay
+      BX   LR
+
+  ALIGN 4
+; 256 points with values from 100 to 9900      
+SinTable
+     DCW  5000, 5308, 5614, 5918, 6219, 6514, 6804, 7086, 7361, 7626
   DCW  7880, 8123, 8354, 8572, 8776, 8964, 9137, 9294, 9434, 9556
   DCW  9660, 9746, 9813, 9861, 9890, 9900, 9890, 9861, 9813, 9746
   DCW  9660, 9556, 9434, 9294, 9137, 8964, 8776, 8572, 8354, 8123
@@ -144,11 +177,5 @@ SinTaBLe
   DCW   340,  254,  187,  139,  110,  100,  110,  139,  187,  254
   DCW   340,  444,  566,  706,  863, 1036, 1224, 1428, 1646, 1877
   DCW  2120, 2374, 2639, 2914, 3196, 3486, 3781, 4082, 4386, 4692
- 
-   
-   
-      
-   ALIGN
-	   
-	   
-   END
+     ALIGN      ; make sure the end of this section is aligned
+     END        ; end of file
