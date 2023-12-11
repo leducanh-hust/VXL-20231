@@ -54,7 +54,7 @@ while ; stop oscilation
    MOV32 r4,#400000;20%
    ADD r5,r5,r4
    CMP r5,r6 ;neu dang o 90% duty cycle thi chuyen duty cycle sang 10%
-   BLs this 
+   BLS this 
    MOV32 r5,#200000;10%
 this   BL toggle
    b kiemtra
